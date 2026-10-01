@@ -1,4 +1,6 @@
 <div align="center">
+  <img src="logo.png" alt="Logo" width="128" height="128">
+  
   <h1>paddy-field-segmentation-finals</h1>
   <p><strong>Pleiades High-Resolution Satellite Semantic Segmentation for National Food Security Mapping</strong></p>
   
