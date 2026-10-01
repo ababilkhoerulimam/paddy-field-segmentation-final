@@ -241,126 +241,51 @@ Pipeline segmentasi berbasis deep learning heterogen ini berhasil memetakan laha
 * **Ambiguitas Genangan Awal Musim Tanam:** Fase penggenangan sawah (*puddle phase*) sebelum penanaman bibit secara visual menyerupai rawa atau tambak ikan. Kalibrasi threshold dinamis berbasis NoData yang telah diimplementasikan berhasil mereduksi kesalahan ini, namun integrasi data deret waktu (*temporal time-series*) direkomendasikan untuk audit multi-musim.
 
 
-## 8. Blueprint Slide Presentasi Babak Final (12-Slide Pitch Deck Structure)
+## 8. Analisis Mendalam Implementasi Teknis & Karakteristik Komputasi
 
-Bagian ini dirancang khusus sebagai panduan terstruktur bagi rekan tim dalam menyusun slide presentasi PowerPoint (PPT), lengkap dengan rekomendasi visual, teks kunci, dan naskah narasi pembicara (*speaker notes*).
+Bagian ini menyajikan dokumentasi teknis mendalam mengenai fondasi matematis, spesifikasi komputasi, dan pertimbangan rekayasa perangkat lunak yang diterapkan di seluruh sel notebook.
 
-### Slide 01: Judul Proyek & Identitas Tim
-* **Rekomendasi Visual:** Citra satelit resolusi tinggi Pleiades dengan overlay masker segmentasi hijau transparan di sebelah kanan, dan logo kompetisi di sudut atas.
-* **Teks Kunci di Slide:**
-  * Judul: Segmentasi Semantik Lahan Sawah Berbasis Citra Satelit Resolusi Tinggi Pleiades
-  * Subjudul: Pendekatan Heterogeneous Multi-Family Deep Learning Ensemble Bebas-Leakage
-  * Tim: rico sakit perut vs 100 gorila
-  * Pencapaian: Juara 2 Nasional (Private Leaderboard Score: 0.68965 | Public Leaderboard Score: 0.78169)
-* **Speaker Notes:**
-  "Selamat pagi/siang Dewan Juri yang terhormat. Kami dari tim 'rico sakit perut vs 100 gorila' mempersembahkan solusi segmentasi semantik lahan sawah berbasis citra satelit resolusi tinggi Pleiades. Melalui integrasi 4 arsitektur deep learning heterogen dan validasi bebas-leakage, solusi kami berhasil meraih peringkat 2 nasional pada babak penentuan dengan stabilitas generalisasi tertinggi."
+### 8.1 Karakteristik Spektral & Justifikasi Normalisasi Pleiades
+Citra satelit Pleiades yang digunakan dalam kompetisi ini memiliki resolusi spasial tinggi (Ground Sampling Distance 0.5 meter per piksel) namun terbatas pada 3 kanal tampak (Red, Green, Blue) tanpa kanal Near-Infrared (NIR). Ketiadaan kanal NIR diatasi melalui dua pendekatan teknis:
+1. **Pemanfaatan Indeks Spektral NGRDI:**
+   Sebagai pengganti NDVI, indeks vegetasi diturunkan menggunakan rasio Normalized Green-Red Difference Index:
+$$
+\text{NGRDI} = \frac{\text{Green} - \text{Red}}{\text{Green} + \text{Red}}
+$$
+   Nilai rata-rata NGRDI terukur pada area sawah sebesar **+0.0320**, sedangkan pada non-sawah sebesar **+0.0154**. Separasi positif ini membuktikan adanya respons spektral klorofil daun padi yang dapat dieksploitasi oleh lapisan konvolusi awal.
+2. **Koreksi Distribusi Radiometrik (Custom Normalization):**
+   Statistik normalisasi standar ImageNet (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`) diturunkan dari fotografi natural jarak dekat yang memiliki iluminasi jauh lebih terang daripada reflektansi atmosferik bumi. Menggunakan statistik Pleiades empiris (`mean=[0.3230, 0.3372, 0.3593]`, `std=[0.2069, 0.1901, 0.1848]`) memusatkan aktivasi tensor di sekitar nilai nol, mencegah saturasi gradien pada fungsi aktivasi ReLU/SiLU di tahap awal pelatihan.
 
-### Slide 02: Urgensi Permasalahan & Latar Belakang Domain
-* **Rekomendasi Visual:** Ilustrasi perbandingan survei manual KSA BPS di lapangan vs pemantauan otomatis satelit dari antariksa.
-* **Teks Kunci di Slide:**
-  * Kebutuhan: Pemutakhiran Luas Baku Sawah (LBS) nasional untuk estimasi produksi pangan dan ketahanan pangan.
-  * Masalah Konvensional: Survei lapangan Kerangka Sampel Area (KSA) membutuhkan waktu berbulan-bulan dan biaya hingga Rp 75.000 per hektar.
-  * Solusi AI: Pemetaan otomatis skala kecamatan beresolusi 0.5 meter yang dapat diselesaikan dalam hitungan jam dengan efisiensi biaya hingga 68%.
-* **Speaker Notes:**
-  "Ketahanan pangan nasional bergantung pada akurasi data Luas Baku Sawah. Saat ini, metode survei terestrial membutuhkan waktu 3 hingga 6 bulan dan menyerap anggaran survei yang besar. Kami menghadirkan pipeline segmentasi citra satelit otomatis beresolusi 0.5 meter yang mampu memetakan seluruh petak sawah dalam hitungan jam dengan biaya operasional 68% lebih hemat."
+### 8.2 Spesifikasi Arsitektur Heterogen & Alokasi Peran
+Kombinasi 4 model juara dirancang secara sengaja untuk memaksimalkan keragaman representasi spasial (*architectural diversity*):
 
-### Slide 03: Karakteristik Dataset & 3 Tantangan Struktural
-* **Rekomendasi Visual:** Tiga panel gambar: (1) Foto RGB tanpa kanal NIR, (2) Batas orbit hitam NoData, (3) Variasi petak sawah makro vs mikro.
-* **Teks Kunci di Slide:**
-  * Tantangan 1: Ketiadaan Kanal Inframerah (NIR) - Citra murni RGB 3-kanal menuntut ekstraksi tekstur spasial mendalam sebagai pengganti NDVI.
-  * Tantangan 2: Anomali Batas Orbit (NoData) - 18.95% area data latih memuat piksel hitam murni yang berisiko memicu false-positive.
-  * Tantangan 3: Skala Spasial Ekstrem - Rentang petak sawah dari hamparan >10.000 piksel (71.5%) hingga pematang terasering <100 piksel (7.3%).
-* **Speaker Notes:**
-  "Data yang dihadapi memiliki 3 tantangan utama. Pertama, tidak adanya kanal Near-Infrared meniadakan penggunaan NDVI standar. Kedua, hampir 19% area citra adalah batas orbit hitam NoData. Ketiga, variasi petak sangat ekstrem: ada hamparan luas dan ada terasering sempit selebar 1-2 piksel."
+| Model ID | Arsitektur | Backbone Enkoder | Peran Utama & Keunggulan Representasi |
+|:---:|---|---|---|
+| **m3** | U-Net | SE-ResNeXt50 (32x4d) | **Channel-wise Attention:** Modul Squeeze-and-Excitation secara adaptif menimbang kepentingan kanal spektral padi. |
+| **m4** | U-Net | EfficientNet-B4 | **Compound Scaling:** Keseimbangan optimal antara kedalaman jaringan, lebar kanal, dan resolusi fitur spasial. |
+| **m5** | DeepLabV3+ | ResNeXt50 (32x4d) | **Multi-Scale Context:** Atrous Spatial Pyramid Pooling (ASPP) menangkap petak sawah makro tanpa kehilangan resolusi. |
+| **m7** | MAnet | MiT-B3 (SegFormer) | **Global Attention:** Multi-scale Attention Network memadukan position attention dan channel attention transformer. |
 
-### Slide 04: Exploratory Data Analysis & Audit Radiometrik
-* **Rekomendasi Visual:** Grafik Kolmogorov-Smirnov test, histogram NGRDI, dan heatmap spasial (ambil dari `notebook-images/8b5e9e17-0977-4048-a481-1f25180372e3_plot_1.png`).
-* **Teks Kunci di Slide:**
-  * Audit Drift: Uji dua sampel Kolmogorov-Smirnov membuktikan tidak ada domain shift radiometrik (KS statistik R=0.0197, G=0.0374, B=0.0405, seluruh p-value aman).
-  * Indeks Vegetasi Alternatif: NGRDI sawah (+0.0320) terbukti separabel terhadap non-sawah (+0.0154).
-  * Normalisasi Domain: Menghitung mean [0.323, 0.337, 0.359] khusus Pleiades untuk menggantikan statistik ImageNet yang terlalu terang.
-* **Speaker Notes:**
-  "Sebelum melatih model, kami mengaudit domain secara ketat. Uji Kolmogorov-Smirnov membuktikan karakteristik sensor citra latih dan uji identik tanpa drift radiometrik. Kami juga menghitung normalisasi khusus citra Pleiades untuk mempercepat konvergensi model hingga 3 kali lipat dibanding menggunakan normalisasi ImageNet."
+### 8.3 Formulasi Matematis Optimasi Logit-Space Nelder-Mead
+Alih-alih merata-ratakan nilai probabilitas $[0, 1]$ secara linear yang rentan terdistorsi pada nilai batas ekstrem, pemaduan ensemble dilakukan pada ruang logit unconstrained:
+$$
+z_i = \sum_{m \in M} w_m \cdot \log\left( \frac{p_{m, i}}{\epsilon + (1 - p_{m, i})} \right)
+$$
+di mana $w_m \ge 0$ memenuhi $\sum w_m = 1$. Probabilitas gabungan akhir dihitung kembali melalui transformasi logistik:
+$$
+P_{\text{Ensemble}, i} = \frac{1}{1 + \exp(-z_i)}
+$$
+Optimalitas parameter $(w_1, w_2, w_3, w_4, \tau)$ dicari menggunakan metode simplex Nelder-Mead langsung pada metrik Micro-IoU Out-of-Fold:
+$$
+\max_{w, \tau} \quad \frac{\sum_i \text{TP}_i(w, \tau)}{\sum_i \text{TP}_i(w, \tau) + \sum_i \text{FP}_i(w, \tau) + \sum_i \text{FN}_i(w, \tau)}
+$$
+Prosedur ini menghasilkan konvergensi pada bobot optimal m3=**0.3770**, m4=**0.3120**, m5=**0.1850**, m7=**0.1260** dan ambang batas optimal $\tau = \mathbf{0.3150}$.
 
-### Slide 05: Skema Validasi 5-Fold Stratified & Zero-Leakage
-* **Rekomendasi Visual:** Diagram pie chart atau bar chart pembagian 5 fold yang seimbang tutupan sawahnya (35.2% - 39.2%).
-* **Teks Kunci di Slide:**
-  * Strategi: Stratified K-Fold (k=5) berbasis kuantil tutupan sawah (coverage quantiles).
-  * Kontrol Disparitas: Menjaga selisih NoData antarlipatan di bawah 7.84% untuk mencegah bias estimasi.
-  * Protokol Zero-Leakage: Penyetelan bobot ensemble dan threshold dihitung murni pada data Out-of-Fold (OOF), tanpa menyentuh data uji.
-* **Speaker Notes:**
-  "Kami menerapkan 5-Fold Cross-Validation terstratifikasi berdasarkan kuantil tutupan sawah. Hal ini menjamin setiap fold memiliki perwakilan yang seimbang antara petak luas dan petak sempit. Seluruh bobot ensemble dan threshold diturunkan murni dari data validasi Out-of-Fold untuk menjamin integritas zero-leakage."
-
-### Slide 06: Arsitektur Multi-Family Model Zoo & Hasil Skrining
-* **Rekomendasi Visual:** Diagram pohon arsitektur atau tabel hasil skrining 7 model pada Fold 0.
-* **Teks Kunci di Slide:**
-  * Skrining 7 Arsitektur: Mengevaluasi keluarga CNN klasik, dense connection, atrous pooling, hingga vision transformer.
-  * 4 Model Terpilih (The Champions):
-    1. U-Net + SE-ResNeXt50 (IoU Fold 0: 0.8823 - Champion CNN)
-    2. U-Net + EfficientNet-B4 (IoU Fold 0: 0.8822 - Balanced Scaler)
-    3. DeepLabV3+ + ResNeXt50 (IoU Fold 0: 0.8738 - Atrous Multi-scale)
-    4. MAnet + MiT-B3 (IoU Fold 0: 0.8574 - Multi-scale Attention Transformer)
-* **Speaker Notes:**
-  "Alih-alih bergantung pada satu model, kami menguji 7 arsitektur lintas keluarga. Kami memilih 4 arsitektur juara dengan karakteristik komplementer: U-Net SE untuk atensi kanal, EfficientNet untuk skala efisien, DeepLabV3+ untuk konteks multiskala petak luas, dan MAnet untuk mekanisme atensi posisi."
-
-### Slide 07: Performa 5-Fold Cross-Validation & Snapshot Ensemble
-* **Rekomendasi Visual:** Grafik performa per-fold dan model ranking (ambil dari `notebook-images/71f84414-43bb-4ac1-a89d-9510d88ccdd1_plot_1.png`).
-* **Teks Kunci di Slide:**
-  * Total Model: 20 model terlatih penuh (4 arsitektur x 5 fold) dalam waktu 61.1 menit di GPU RTX 5070.
-  * Rerata Validasi 5-Fold:
-    * Model 3 (U-Net SE-ResNeXt50): Mean IoU = 0.9103 (+-0.0184)
-    * Model 4 (U-Net EfficientNet-B4): Mean IoU = 0.9041 (+-0.0136)
-    * Model 5 (DeepLabV3+ ResNeXt50): Mean IoU = 0.8997 (+-0.0150)
-    * Model 7 (MAnet MiT-B3): Mean IoU = 0.8894 (+-0.0193)
-* **Speaker Notes:**
-  "Seluruh 4 model dilatih pada kelima fold validasi. Hasilnya menunjukkan konsistensi luar biasa dengan rata-rata IoU validasi melampaui 0.90 pada model utama. Variansi antar-fold yang rendah membuktikan model kami tidak mengalami overfitting pada wilayah tertentu."
-
-### Slide 08: Optimasi Ensemble Nelder-Mead & Analisis Sensitivitas
-* **Rekomendasi Visual:** Kurva sensitivitas threshold berbentuk parabola (ambil dari `notebook-images/fc5076d9-7a70-47aa-bb9a-f4c5468337c6_plot_1.png`).
-* **Teks Kunci di Slide:**
-  * Logit-Space Blending: Pembobotan ensemble di ruang logit unconstrained log(p/(1-p)) untuk menjaga ketajaman batas biner.
-  * Optimasi Simplex Nelder-Mead: Menemukan bobot optimal (m3=0.377, m4=0.312, m5=0.185, m7=0.126) secara simultan dengan threshold global.
-  * Kurva Sensitivitas: Membuktikan threshold optimal berada pada tau = 0.3150, bukan 0.50 yang terlalu konservatif pada batas sawah.
-* **Speaker Notes:**
-  "Kami memadukan probabilitas model di ruang logit, bukan sekadar rata-rata linear. Melalui optimasi Nelder-Mead pada data OOF, kami membuktikan secara matematis bahwa ambang batas optimal berada di angka 0.315. Kurva sensitivitas ini menunjukkan bahwa threshold 0.50 default memicu penalti berat akibat under-prediction pada petak sempit."
-
-### Slide 09: Studi Ablasi Komprehensif (Ablation Study)
-* **Rekomendasi Visual:** Grafik horizontal bar chart kenaikan skor ablasi (ambil dari `notebook-images/7da34309-db6c-4467-a3cc-a7755b59d4de_plot_1.png`).
-* **Teks Kunci di Slide:**
-  * Baseline Single Fold 0: IoU = 0.8822
-  * + Full 5-Fold Ensembling: IoU = 0.9103 (+0.0281)
-  * + Logit-Space Convex Blend: IoU = 0.9185 (+0.0082)
-  * + D4 Test-Time Augmentation (4-View): IoU = 0.9240 (+0.0055)
-  * + NoData Boundary Hard-Zeroing: IoU = 0.9275 (+0.0035)
-* **Speaker Notes:**
-  "Studi ablasi kami membuktikan bahwa setiap komponen inovasi memberikan kontribusi positif yang nyata tanpa ada regresi performa. Peningkatan terbesar disumbangkan oleh ensemble 5-fold dan pemaduan logit, disusul oleh augmentasi rotasi D4 dan eliminasi batas NoData."
-
-### Slide 10: Hasil Akhir & Pembuktian Generalisasi Private Leaderboard
-* **Rekomendasi Visual:** Screenshot papan peringkat final kompetisi yang memperlihatkan peringkat 2 (skor 0.68965) dengan indikator kenaikan (+5 peringkat).
-* **Teks Kunci di Slide:**
-  * Public Leaderboard: Skor 0.78169 (Peringkat 7)
-  * Private Leaderboard: Skor 0.68965 (Peringkat 2 Nasional - Runner-Up)
-  * Fenomena Shake-up: Naik +5 posisi saat evaluasi private, membuktikan pipeline kami memiliki generalisasi tertinggi dan bebas dari overfitting data uji publik.
-* **Speaker Notes:**
-  "Inilah bukti keunggulan metodologi kami: di babak penentuan Private Leaderboard, model kami melonjak naik 5 peringkat hingga mengunci posisi Juara 2 Nasional. Ketika model tim lain tumbang akibat overfitting pada data uji publik, model kami tetap kokoh karena validasi kami dirancang bebas-leakage sejak awal."
-
-### Slide 11: Diagnostik Visual Spasial & Peta Ketidakpastian (Uncertainty Map)
-* **Rekomendasi Visual:** Panel 3 gambar: Citra asli, Hasil prediksi segmentasi, dan Peta ketidakpastian (ambil dari `notebook-images/c85a97ef-ee76-4aac-a208-f6be21eae8f8_plot_1.png`).
-* **Teks Kunci di Slide:**
-  * Presisi Batas: Prediksi menangkap pematang sempit dan membedakannya dari vegetasi semak secara tajam.
-  * Peta Ketidakpastian (Inter-Model Uncertainty): Deviasi probabilitas mendekati 0.00 pada hamparan sawah dan non-sawah.
-  * Zero Spatial Hallucination: Ketidakpastian hanya terlokalisasi di saluran pematang selebar 1-2 piksel akibat fenomena mixed-pixel pada resolusi sensor 0.5 meter.
-* **Speaker Notes:**
-  "Melalui peta ketidakpastian antar-model, kami membuktikan bahwa model kami tidak mengalami halusinasi spasial. Tingkat keyakinan model mencapai mendekati 100% pada area inti sawah dan pemukiman, dan ketidakpastian hanya terisolasi tipis tepat di garis pematang air yang memang selebar resolusi sensor."
-
-### Slide 12: Dampak Kebijakan Pangan, Rekomendasi Bisnis, & Masa Depan
-* **Rekomendasi Visual:** Infografis 3 pilar dampak: Otomasi LBS, Deteksi Alih Fungsi Lahan, dan Integrasi Radar SAR.
-* **Teks Kunci di Slide:**
-  * Otomasi LBS Nasional: Memangkas siklus pemutakhiran data luas baku sawah dari 6 bulan menjadi hitungan jam.
-  * Early Warning Alih Fungsi: Memanfaatkan peta deviasi temporal untuk memonitor konversi lahan pertanian ke kawasan industri.
-  * Roadmap Lanjutan: Integrasi fusi citra radar Sentinel-1 SAR untuk menembus tutupan awan tebal di musim penghujan.
-* **Speaker Notes:**
-  "Sebagai penutup, inovasi ini siap diintegrasikan pada sistem pemutakhiran Luas Baku Sawah nasional di Kementerian Pertanian dan BPS. Model ini mampu menghemat 68% biaya survei dan memonitor alih fungsi lahan sawah secara dini. Ke depan, kami merekomendasikan fusi data radar Sentinel-1 SAR untuk mengatasi kendala awan di musim hujan. Terima kasih."
+### 8.4 Analisis Generalisasi Private Leaderboard (Fenomena Shake-up)
+Hasil akhir kompetisi mengonfirmasi keunggulan metodologi validasi yang diterapkan:
+* **Public Leaderboard (55% slice uji):** Skor **0.78169** (Peringkat 7).
+* **Private Leaderboard (45% slice uji penentuan):** Skor **0.68965** (Peringkat 2 Nasional - Runner-Up).
+* **Dinamika Kenaikan Peringkat:** Tim melonjak naik **+5 peringkat**, membuktikan bahwa pipeline memiliki ketahanan generalisasi tertinggi saat diuji pada petak-petak sawah baru yang belum pernah dilihat sebelumnya. Penurunan nilai absolut skor terjadi pada seluruh peserta (skor Juara 1 adalah **0.69137**), yang mencerminkan tingkat kesulitan dan proporsi batas NoData yang lebih tinggi pada slice private test set.
 
 ## 9. Lembar Jawaban & Antisipasi Pertanyaan Juri (Q&A Defense Guide)
 
