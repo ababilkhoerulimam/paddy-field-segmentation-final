@@ -38,8 +38,8 @@ Pipeline mengintegrasikan 4 pilar solusi utama:
 ### Cell 3: Distribusi Tutupan Sawah dan Inspeksi Kohort Visual
 
 - **Purpose:** Menganalisis skewness distribusi tutupan sawah dan melakukan inspeksi visual pada sampel citra ekstrem.
-- **Observed Output:** Distribusi tutupan sawah latih memiliki nilai rerata **0.3709**, median **0.3437**, skewness moderat **0.3765**, dengan nilai minimum **0.0028** (hampir tanpa sawah) dan maksimum **0.8872** (hampir seluruhnya sawah). Plot distribusi memperlihatkan profil unimodal yang agak miring ke kanan (*right-skewed*).
-- **Technical Insight:** Ketiadaan masker kosong (*empty masks = 0*) membuktikan seluruh tile latih memuat sawah aktif. Namun, rentang tutupan dari 0.28% hingga 88.72% mengindikasikan bahwa pembagian fold acak sederhana (*random K-fold*) akan menghasilkan variansi fold yang besar, menuntut partisi bertingkat (*stratified partition*).
+- **Observed Output:** Distribusi tutupan sawah latih memiliki nilai rerata **0.3709**, median **0.3437**, skewness moderat **0.3765**, dengan nilai minimum **0.0115** (tile `train_010`) dan maksimum **0.9998** (tile `train_098`). Plot distribusi memperlihatkan profil unimodal yang agak miring ke kanan (*right-skewed*).
+- **Technical Insight:** Ketiadaan masker kosong (*empty masks = 0*) membuktikan seluruh tile latih memuat sawah aktif. Namun, rentang tutupan dari 1.15% hingga 99.98% mengindikasikan bahwa pembagian fold acak sederhana (*random K-fold*) akan menghasilkan variansi fold yang besar, menuntut partisi bertingkat (*stratified partition*).
 
 ### Cell 4: Audit Wilayah Perbatasan NoData dan Pemisahan Spektral
 
@@ -53,7 +53,7 @@ Pipeline mengintegrasikan 4 pilar solusi utama:
 - **Observed Output:** Nilai statistik kanal RGB terhitung sebesar:
   * Rerata (`NORM_MEAN`): `[0.3230, 0.3372, 0.3593]`
   * Standar Deviasi (`NORM_STD`): `[0.2069, 0.1901, 0.1848]`
-- **Technical Insight:** Normalisasi ImageNet (`mean=[0.485, 0.456, 0.406]`) diturunkan dari foto fotografi natural berspektrum terang. Menggunakan normalisasi Pleiades spesifik mencegah distorsi gradien pada fase konvolusi awal (*first-layer feature activation*), mempercepat konvergensi model hingga 3x lipat pada 5 epoch pertama.
+- **Technical Insight:** Normalisasi ImageNet (`mean=[0.485, 0.456, 0.406]`) diturunkan dari foto fotografi natural berspektrum terang. Menggunakan normalisasi Pleiades spesifik mencegah distorsi gradien pada fase konvolusi awal (*first-layer feature activation*), memastikan aktivasi fitur pada lapisan awal konvolusi langsung terpusat pada rentang dinamis citra Pleiades yang cenderung lebih pekat dibandingkan foto natural ImageNet, meningkatkan stabilitas gradien pada fase pelatihan awal.
 
 ### Cell 5: Morfologi Komponen Terhubung dan Uji Pergeseran Domain Kolmogorov-Smirnov
 
@@ -63,7 +63,7 @@ Pipeline mengintegrasikan 4 pilar solusi utama:
   * Kanal Hijau (G): **0.0374**
   * Kanal Biru (B): **0.0405**
   Seluruh nilai uji berada jauh di bawah ambang batas kritis **0.05**.
-- **Technical Insight:** Nilai uji KS yang sangat rendah membuktikan tidak adanya *domain shift* radiometrik antara train dan test set. Distribusi sensor, sudut penyinaran matahari, dan kalibrasi atmosferik bersifat homogen. Petak kecil <100 px terkonfirmasi sebagai artefak anotasi batas, menjustifikasi eksplorasi *morphological blob filtering*.
+- **Technical Insight:** Nilai uji KS yang sangat rendah (<0.05) mengindikasikan ketiadaan *covariate shift* radiometrik yang signifikan pada distribusi intensitas kanal RGB antara train dan test set, mendukung transferabilitas model yang andal tanpa re-kalibrasi domain. Distribusi sensor, sudut penyinaran matahari, dan kalibrasi atmosferik bersifat homogen. Petak kecil <100 px terkonfirmasi sebagai artefak anotasi batas, menjustifikasi eksplorasi *morphological blob filtering*.
 
 ### Cell 6: Verifikasi Kontrak RLE Masker Bergaya Airbus
 
@@ -164,28 +164,27 @@ Prediksi OOF gabungan untuk seluruh 123 citra latih tersimpan di `oof_prediction
 ### Cell 14B: Optimasi Bobot Ensemble Berbasis OOF & Analisis Sensitivitas Threshold
 
 - **Purpose:** Menemukan bobot perpaduan ensemble optimal ($W$) dan ambang batas keputusan global ($\tau$) secara simultan menggunakan algoritma Nelder-Mead simplex murni pada data validasi *Out-of-Fold* (OOF) 123 citra tanpa menyentuh data uji.
-- **Observed Output:** Optimasi konvergen pada iterasi ke-142 dengan bobot OOF:
-  * Bobot Model 3 (U-Net SE-ResNeXt50): **0.3770**
-  * Bobot Model 4 (U-Net EfficientNet-B4): **0.3120**
-  * Bobot Model 5 (DeepLabV3+ ResNeXt50): **0.1850**
-  * Bobot Model 7 (MAnet MiT-B3): **0.1260**
-  Ambang batas optimal global terkalibrasi pada $\tau = \mathbf{0.3150}$. Plot kurva sensitivitas memperlihatkan bentuk parabola mulus dengan puncak IoU di rentang $\tau \in [0.30, 0.33]$, membuktikan bahwa threshold standar 0.50 memicu penalti berat akibat *under-prediction* pada petak sempit.
+- **Observed Output:** Optimasi Nelder-Mead pada validasi 5-Fold OOF (cast float32 bebas divergensi numerik) menghasilkan bobot ensemble:
+  * Bobot Model 3 (U-Net SE-ResNeXt50): **0.3690**
+  * Bobot Model 4 (U-Net EfficientNet-B4): **0.2529**
+  * Bobot Model 5 (DeepLabV3+ ResNeXt50): **0.2225**
+  * Bobot Model 7 (MAnet MiT-B3): **0.1556**
+  Ambang batas optimal global terkalibrasi pada $\tau = \mathbf{0.4652}$ dengan skor **Optimal OOF Micro-IoU = 0.9178**. Plot kurva sensitivitas memperlihatkan profil cekung mulus dengan puncak IoU di sekitar $\tau \approx 0.465$, membuktikan bahwa ensemble logit-space menghasilkan kalibrasi probabilitas yang seimbang dan stabil.
 - **Technical Insight:** Menjalankan optimasi di ruang logit unconstrained ($\log(p / (1-p))$) mempertahankan sifat probabilistik ekstrem mendekati 0 dan 1, menghasilkan pemisahan batas segmentasi yang jauh lebih tajam dibandingkan rata-rata linear probabilitas biasa.
 
 ### Cell 14C: Studi Ablasi Kenaikan Skor Bertahap (Ablation Study)
 
-- **Purpose:** Mengukur secara kuantitatif kontribusi marjinal dari setiap komponen inovasi arsitektur dan pemrosesan yang ditambahkan ke dalam pipeline.
-- **Observed Output:** Evaluasi performa bertahap pada data validasi OOF:
+- **Purpose:** Mengukur secara kuantitatif kontribusi marjinal dari setiap strategi perpaduan model yang ditambahkan ke dalam pipeline secara langsung dari prediksi OOF.
+- **Observed Output:** Evaluasi performa bertahap yang dihitung secara langsung dan empiris dari prediksi OOF:
 
 | Tahapan Eksperimen | Validasi Micro-IoU | Delta Peningkatan ($\Delta$) | Justifikasi Mekanistik |
 |---|:---:|:---:|---|
-| **Baseline (Single Best Fold-0)** | **0.8822** | Dasar acuan | Model tunggal U-Net tanpa TTA |
-| **Full 5-Fold Ensembling** | **0.9103** | **+0.0281** | Mereduksi variansi sampling antar-wilayah geografis |
-| **Logit-Space Nelder-Mead Blend** | **0.9185** | **+0.0082** | Menyeimbangkan kekuatan CNN lokal dan atensi transformer |
-| **D4 Test-Time Augmentation** | **0.9240** | **+0.0055** | Mengeliminasi bias orientasi sudut perekaman sensor |
-| **+ NoData Boundary Hard Zeroing** | **0.9275** | **+0.0035** | Menghapus false-positive pada batas orbit hitam mosaik |
+| **Baseline (Single Model 3 @ tau=0.50)** | **0.9100** | Dasar acuan | Arsitektur terbaik tunggal pada threshold default standar |
+| **Equal Probability Average (4 Models @ tau=0.50)** | **0.9168** | **+0.0068** | Ensemble probabilitas linear mereduksi variansi induktif multi-model |
+| **Equal Logit-Space Blend (@ opt tau)** | **0.9172** | **+0.0004** | Perpaduan ruang logit unconstrained pada threshold optimal |
+| **Nelder-Mead Weighted Logit Blend (@ opt tau)** | **0.9178** | **+0.0006** | Bobot teroptimasi memaksimalkan kontribusi model CNN dan transformer |
 
-- **Technical Insight:** Setiap komponen terbukti memberikan kontribusi positif yang konsisten tanpa satupun regresi performa (*zero regression pipeline*). Peningkatan terbesar disumbangkan oleh *5-Fold Cross-Validation* (+2.81%) dan *Logit Blending* (+0.82%).
+- **Technical Insight:** Setiap tahapan perpaduan ensemble terbukti memberikan peningkatan skor empiris yang konsisten tanpa regresi (*zero regression pipeline*). Transisi dari model tunggal ke ensemble 4 model memberikan lonjakan terbesar (+0.68%), disempurnakan oleh perpaduan ruang logit dan optimasi bobot Nelder-Mead (+0.10%).
 
 ## 6. Inferensi Test Set, Augmentasi Waktu Uji (TTA), dan Pasca-Pemrosesan
 
@@ -226,7 +225,7 @@ Prediksi OOF gabungan untuk seluruh 123 citra latih tersimpan di `oof_prediction
 ## 7. Rekomendasi Bisnis & Implikasi Kebijakan Ketahanan Pangan
 
 ### Ringkasan Eksekutif Solusi
-Pipeline segmentasi berbasis deep learning heterogen ini berhasil memetakan lahan sawah dari citra satelit resolusi tinggi Pleiades dengan skor akurasi multi-ambang batas **0.78169** pada Leaderboard Kompetisi Nasional, didukung oleh validasi silang internal dengan Micro-IoU mencapai **0.9275**. Solusi ini mengeliminasi kebutuhan survei terestrial manual yang lambat dan berbiaya tinggi.
+Pipeline segmentasi berbasis deep learning heterogen ini berhasil memetakan lahan sawah dari citra satelit resolusi tinggi Pleiades dengan skor akurasi multi-ambang batas **0.78169** pada Leaderboard Kompetisi Nasional, didukung oleh validasi silang internal dengan Micro-IoU mencapai **0.9178**. Solusi ini mengeliminasi kebutuhan survei terestrial manual yang lambat dan berbiaya tinggi.
 
 ### Rekomendasi Strategis untuk Pemangku Kepentingan (Kementerian Pertanian & BPS)
 1. **Otomasi Pemutakhiran Luas Baku Sawah (LBS) Nasional:**
@@ -279,7 +278,7 @@ Optimalitas parameter $(w_1, w_2, w_3, w_4, \tau)$ dicari menggunakan metode sim
 $$
 \max_{w, \tau} \quad \frac{\sum_i \text{TP}_i(w, \tau)}{\sum_i \text{TP}_i(w, \tau) + \sum_i \text{FP}_i(w, \tau) + \sum_i \text{FN}_i(w, \tau)}
 $$
-Prosedur ini menghasilkan konvergensi pada bobot optimal m3=**0.3770**, m4=**0.3120**, m5=**0.1850**, m7=**0.1260** dan ambang batas optimal $\tau = \mathbf{0.3150}$.
+Prosedur ini menghasilkan konvergensi pada bobot optimal m3=**0.3690**, m4=**0.2529**, m5=**0.2225**, m7=**0.1556** dan ambang batas optimal $\tau = \mathbf{0.4652}$ (skor Micro-IoU OOF = **0.9178**).
 
 ### 8.4 Analisis Generalisasi Private Leaderboard (Fenomena Shake-up)
 Hasil akhir kompetisi mengonfirmasi keunggulan metodologi validasi yang diterapkan:
@@ -293,11 +292,11 @@ Panduan ini berisi kompilasi pertanyaan tersulit yang berpotensi diajukan oleh d
 
 ### Pertanyaan 1: Mengapa kalian memilih melakukan ensemble 4 arsitektur berbeda, bukan melatih satu arsitektur besar saja?
 * **Strategi Jawaban:**
-  "Kami menganalisis bahwa setiap keluarga arsitektur memiliki karakteristik reseptif yang berbeda pada citra satelit. U-Net SE unggul dalam penimbangan bobot kanal spektral, DeepLabV3+ memiliki modul ASPP yang sangat kuat menangkap hamparan sawah berskala makro (>10.000 piksel), sedangkan MAnet transformer unggul dalam pemodelan relasi spasial global jarak jauh. Menggabungkan 4 arsitektur ini terbukti menurunkan variansi error sebesar 2.81% pada studi ablasi kami."
+  "Kami menganalisis bahwa setiap keluarga arsitektur memiliki karakteristik reseptif yang berbeda pada citra satelit. U-Net SE unggul dalam penimbangan bobot kanal spektral, DeepLabV3+ memiliki modul ASPP yang sangat kuat menangkap hamparan sawah berskala makro (>10.000 piksel), sedangkan MAnet transformer unggul dalam pemodelan relasi spasial global jarak jauh. Menggabungkan 4 arsitektur ini terbukti meningkatkan skor validasi sebesar +0.78% (dari 0.9100 ke 0.9178) pada studi ablasi empiris kami."
 
-### Pertanyaan 2: Mengapa threshold optimal kalian berada di sekitar 0.315, bukan memakai threshold default 0.50?
+### Pertanyaan 2: Mengapa threshold optimal kalian berada di sekitar 0.465, bukan memakai threshold default 0.50?
 * **Strategi Jawaban:**
-  "Berdasarkan analisis morfologi kami di Cell 5, petak sawah memiliki pematang-pematang tipis yang mengalami fenomena *mixed pixel* pada resolusi 0.5 meter. Pada batas-batas ini, probabilitas model berkisar di angka 0.30 - 0.45. Jika kita menggunakan threshold standar 0.50, model akan mengalami *under-prediction* parah pada batas fisik sawah. Kurva sensitivitas kami di Cell 14B membuktikan secara matematis bahwa threshold 0.315 menghasilkan Micro-IoU tertinggi pada data validasi Out-of-Fold."
+  "Berdasarkan analisis sensitivitas threshold di Cell 14B, perpaduan probabilitas di ruang logit menghasilkan distribusi probabilitas ensemble yang terkalibrasi halus. Threshold optimal pada validasi OOF berada pada tau = 0.4652 dengan Micro-IoU 0.9178. Threshold sedikit di bawah 0.50 ini memberikan recall optimal pada batas-batas pematang tipis yang mengalami mixed pixel pada resolusi 0.5 meter tanpa meningkatkan false positive pada area non-sawah."
 
 ### Pertanyaan 3: Citra Pleiades ini tidak memiliki kanal Near-Infrared (NIR). Bagaimana model membedakan sawah dengan vegetasi pohon atau semak belukar?
 * **Strategi Jawaban:**
