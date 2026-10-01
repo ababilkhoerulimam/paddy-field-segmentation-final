@@ -77,8 +77,7 @@ paddy-field-segmentation-finals/
 ├── rico sakit perut vs 100 gorila_Notebook_Babak Final.ipynb
 ├── submission.csv
 ├── notebook-context.md
-├── STRATEGY.md
-├── PROJECT_STATE.md
+├── logo.png
 ├── LICENSE
 ├── README.md
 ├── notebook-images/
