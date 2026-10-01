@@ -32,6 +32,18 @@ MANIFEST
 *.manifest
 *.spec
 
+# Datasets and Large Files
+*.tif
+*.tiff
+*.zip
+*.tar.gz
+raw/
+situbondo_raw/
+other_masks/
+oracle/
+holomine-paddy-field-segmentation-finals/
+test_masks_ground_truth/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
