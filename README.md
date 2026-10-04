@@ -76,7 +76,6 @@ Progressive Out-of-Fold (OOF) validation performance across iterative engineerin
 paddy-field-segmentation-finals/
 ├── rico sakit perut vs 100 gorila_Notebook_Babak Final.ipynb
 ├── submission.csv
-├── notebook-context.md
 ├── logo.png
 ├── LICENSE
 ├── README.md
@@ -86,7 +85,6 @@ paddy-field-segmentation-finals/
 
 * `rico sakit perut vs 100 gorila_Notebook_Babak Final.ipynb`: The complete documented notebook with 25 narrative Markdown cells, 23 executed code cells, and embedded visualization plots.
 * `submission.csv`: Final verified test set submission file containing column-major RLE masks for all 129 test tiles.
-* `notebook-context.md`: Comprehensive technical report documenting cell lineage, empirical outputs, literature references, and policy recommendations.
 * `notebook-images/`: Extracted diagnostic figures including sensitivity curves, ablation charts, and model uncertainty maps.
 
 ## Reproducibility Protocol
