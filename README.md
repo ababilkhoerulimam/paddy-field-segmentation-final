@@ -6,7 +6,7 @@
   
   <p align="center">
     <img src="https://img.shields.io/badge/Competition-Holomine_AI_Finals-blue?style=flat-square" alt="Competition">
-    <img src="https://img.shields.io/badge/Standing-Rank_2_National-success?style=flat-square" alt="Standing">
+    <img src="https://img.shields.io/badge/Standing-Rank_2_Kaggle_Leaderboard-success?style=flat-square" alt="Standing">
     <img src="https://img.shields.io/badge/Private_Score-0.68965-orange?style=flat-square" alt="Private Score">
     <img src="https://img.shields.io/badge/Public_Score-0.78169-brightgreen?style=flat-square" alt="Public Score">
     <img src="https://img.shields.io/badge/Language-Python_3.12-3776AB?style=flat-square&logo=python&logoColor=white" alt="Language">
@@ -21,7 +21,7 @@
 
 This repository contains the complete, leak-free, and reproducible winning solution for the Holomine Paddy Field Segmentation Finals. The task requires semantic binary segmentation of agricultural paddy fields across 1024x1024 optical RGB tiles captured by the Pleiades constellation over the Tangerang Sepatan Timur district.
 
-The pipeline achieved Rank 2 National (Runner-Up) with a final Private Leaderboard score of 0.68965, demonstrating a climb of +5 positions from the public standings.
+The pipeline achieved Rank 2 on the Kaggle Leaderboard with a final Private Leaderboard score of 0.68965, demonstrating a climb of +5 positions from the public standings.
 
 ## Tech Stack
 
